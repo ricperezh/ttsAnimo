@@ -6,11 +6,13 @@ import android.speech.tts.TextToSpeech
 import android.util.Log
 import android.widget.Button
 import android.widget.EditText
+import android.widget.Toast
 import kotlinx.android.synthetic.main.activity_main.*
 import org.json.JSONArray
 import java.io.IOException
 import java.io.InputStream
 import java.util.*
+import kotlin.collections.ArrayList
 
 class MainActivity : AppCompatActivity(),TextToSpeech.OnInitListener {
     var globalPositive:Int=0
@@ -27,11 +29,12 @@ class MainActivity : AppCompatActivity(),TextToSpeech.OnInitListener {
             val inputStream:InputStream=assets.open("dictionary.json")
             json =inputStream.bufferedReader().use{it.readText()}
             var jsonarr=JSONArray(json)
-            for(s in 0..jsonarr.length()){
-                var jsonobj = jsonarr.getJSONObject(1)
+            for(s in 0..jsonarr.length()-1){
+                var jsonobj = jsonarr.getJSONObject(s)
                 word=jsonobj.getString("word")
                 positive=jsonobj.getInt("positive")
                 negative=jsonobj.getInt("negative")
+                //Log.d("APPDEBUG","Word:"+word.toLowerCase()+" Search:"+search.toLowerCase())
                 if(word.toLowerCase()==search.toLowerCase()){
                     if (positive==1){
                         globalPositive++
@@ -40,6 +43,11 @@ class MainActivity : AppCompatActivity(),TextToSpeech.OnInitListener {
                     }
                 }
             }
+            Log.d("APPDEBUG","Search:"+search.toLowerCase())
+            Log.d("APPDEBUG","Negative:"+globalNegative.toString())
+            Log.d("APPDEBUG","Positive:"+globalPositive.toString())
+            Log.d("APPDEBUG","=====================================")
+
         }catch (e:IOException){
 
         }
@@ -56,6 +64,7 @@ class MainActivity : AppCompatActivity(),TextToSpeech.OnInitListener {
         tts = TextToSpeech(this, this)
 
         buttonSpeak!!.setOnClickListener { speakOut() }
+
     }
 
     override fun onInit(status: Int) {
@@ -77,8 +86,40 @@ class MainActivity : AppCompatActivity(),TextToSpeech.OnInitListener {
     }
 
     private fun speakOut() {
+        var json:String?=null
+        val wbyw:List<String>
         val text = editText!!.text.toString()
-        tts!!.speak(text, TextToSpeech.QUEUE_FLUSH, null,"")
+        if(text==""){
+            tts!!.speak("Please insert a phrase in spanish", TextToSpeech.QUEUE_FLUSH, null,"")
+            return
+        }
+        var salida:String=""
+        wbyw=text.split(" ")
+        globalPositive=0
+        globalNegative=0
+        for(i in 0..wbyw.size-1){
+            readJson(wbyw[i])
+        }
+
+        try {
+            val inputStream:InputStream=assets.open("food.json")
+            json =inputStream.bufferedReader().use{it.readText()}
+            var jsonarr=JSONArray(json)
+            if(globalPositive>globalNegative){
+                salida="your sentiments are positive. I suggest you to eat "+jsonarr.getJSONArray(0).get((0..jsonarr.getJSONArray(0).length()-1).random()).toString()
+            }else if(globalNegative>globalPositive){
+                salida="your sentiments are negative I suggest you to eat "+jsonarr.getJSONArray(1).get((0..jsonarr.getJSONArray(1).length()-1).random()).toString()
+            }else{
+                salida="your sentiments are neutral I suggest you to eat whatever you want"
+            }
+        }catch (e:IOException){
+
+        }
+
+
+
+        Toast.makeText(this,salida,Toast.LENGTH_LONG)
+        tts!!.speak(salida, TextToSpeech.QUEUE_FLUSH, null,"")
     }
 
     public override fun onDestroy() {
